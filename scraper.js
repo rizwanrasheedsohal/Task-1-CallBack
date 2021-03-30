@@ -1,34 +1,40 @@
-const fetch = require("node-fetch");
-const got = require("got");
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
-const isAbsoluteUrl = require("is-absolute-url");
-const titles = [];
+const request = require("request");
 
-exports.scrap = async function (req, res) {
-  getTitle(req, res, renderResponse);
-};
+exports.scrap = function (req, res) {
+  let addressArray = req.query.address;
 
-getTitle = async (req, res, callback) => {
-  const addressArray = req.query.address;
-  for (let address of addressArray) {
-    if (!isAbsoluteUrl(address)) {
-      address = "https://" + address;
-    }
-    try {
-      let response = await got(address);
-      let dom = new JSDOM(response.body);
-      let title = dom.window.document.querySelector("title").textContent;
-      titles.push(title);
-      console.log(title);
-    } catch (error) {
-      return res.end("Error while fetching Title || URL is invalid");
-    }
+  //if there is a single address in query
+  if (!Array.isArray(addressArray)) {
+    addressArray = [addressArray];
   }
-  callback(res);
+  getTitles(addressArray, (titles) => {
+    //now render HTML after getting all responses
+    res.render("titles", { titles });
+  });
 };
 
-renderResponse = (res) => {
-  console.log(titles);
-  res.render("titles", { titles });
+getTitles = (addressArray, callback) => {
+  const titles = [];
+  let count = 0;
+
+  for (let address of addressArray) {
+    request(address, function (error, response, body) {
+      count++; // Variable used for when to call the callback function for rendering UI
+      if (error) {
+        //No response from URL
+        titles.push(address + " -No Response");
+      } else {
+        let dom = new JSDOM(body);
+        let title = dom.window.document.querySelector("title");
+        if (title !== null) {
+          titles.push(address + " - " + "'" + title.textContent + "'");
+          if (count == addressArray.length) {
+            callback(titles);
+          }
+        }
+      }
+    });
+  }
 };
