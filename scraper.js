@@ -1,6 +1,7 @@
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 const request = require("request");
+var validUrl = require("valid-url");
 
 exports.scrap = function (req, res) {
   let addressArray = req.query.address;
@@ -20,6 +21,9 @@ getTitles = (addressArray, callback) => {
   let count = 0;
 
   for (let address of addressArray) {
+    if (!validUrl.isUri(address)) {
+      address = "https://" + address;
+    }
     request(address, function (error, response, body) {
       count++; // Variable used for when to call the callback function for rendering UI
       if (error) {
